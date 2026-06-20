@@ -1,0 +1,13 @@
+{
+  "name": "weak-signals-survey",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Weak Signals Survey prototype, a dependency-free Node server proxying chat to the Claude API.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
