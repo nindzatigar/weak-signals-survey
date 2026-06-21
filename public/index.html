@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weak Signals Survey: Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Mozilla+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #181b22;
+    --text: #e8e8ec;
+    --muted: #9498a3;
+    --accent: #d4d4d8;
+    --accent-text: #15171c;
+    --user-bubble: #232733;
+    --border: #262a33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Mozilla Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- Welcome screen ---------- */
+  #welcome {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #welcome.hidden { display: none; }
+  .welcome-card {
+    max-width: 560px;
+    width: 100%;
+    text-align: left;
+  }
+  .welcome-card .greeting {
+    font-size: 34px;
+    font-weight: 600;
+    margin: 0 0 24px 0;
+    letter-spacing: -0.3px;
+    text-align: center;
+  }
+  .welcome-card.intro-block {
+    max-width: none;
+    margin: 0 0 32px 0;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .welcome-card.intro-block .greeting {
+    font-size: 22px;
+    text-align: left;
+  }
+  .welcome-card p {
+    color: var(--text);
+    font-size: 15.5px;
+    line-height: 1.7;
+    margin: 0 0 26px 0;
+  }
+  .welcome-card p a, #chat a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+  .welcome-card p a:hover, #chat a:hover { opacity: 0.8; }
+
+  /* ---------- Language toggle ---------- */
+  .lang-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 14px;
+  }
+  .lang-toggle {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 13px;
+    border-radius: 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .lang-toggle:hover { color: var(--text); border-color: var(--accent); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ---------- Language visibility ---------- */
+  body.lang-en .lang-de { display: none; }
+  body.lang-de .lang-en { display: none; }
+
+  /* ---------- Shared input row (welcome screen + composer) ---------- */
+  /* Single rounded pill: textarea blends into the background, the round
+     arrow button sits inside the right edge, like a typical AI chat box. */
+  .input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    background: var(--panel);
+    border: 1px solid #2c303a;
+    border-radius: 26px;
+    padding: 8px 8px 8px 18px;
+  }
+  .input-row:focus-within { border-color: var(--accent); }
+  .composer-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 10px 0;
+    color: var(--text);
+    font-size: 15px;
+    resize: none;
+    font-family: inherit;
+    max-height: 160px;
+  }
+  .composer-input:focus { outline: none; }
+  .composer-send {
+    background: var(--accent);
+    border: none;
+    color: var(--accent-text);
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .composer-send:hover { opacity: 0.92; }
+  .composer-send:disabled { opacity: 0.5; cursor: default; }
+
+  /* ---------- Chat layout ---------- */
+  #app { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  #app.active { display: flex; }
+  #appTopBar { flex-shrink: 0; }
+
+  header {
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.2px;
+  }
+  header span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ---------- Progress bar ---------- */
+  #progressWrap {
+    flex-shrink: 0;
+    padding: 14px 24px 0;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+  }
+  #progressTrack {
+    flex: 1;
+    height: 7px;
+    background: var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  #progressFill {
+    height: 100%;
+    width: 0%;
+    background: var(--muted);
+    border-radius: 7px;
+    transition: width 0.5s ease;
+  }
+  #progressLabel {
+    flex-shrink: 0;
+    min-width: 30px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 24px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .msg { margin-bottom: 22px; }
+  .msg.user { display: flex; justify-content: flex-end; }
+  .msg.assistant .bubble {
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .msg.user .bubble {
+    max-width: 78%;
+    background: var(--user-bubble);
+    border-radius: 14px;
+    border-top-right-radius: 4px;
+    padding: 11px 15px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+  #composer {
+    border-top: 1px solid var(--border);
+    padding: 16px 24px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .typing { color: var(--muted); font-size: 13px; font-style: italic; }
+
+  /* ---------- Site footer / credit line ---------- */
+  #siteFooter {
+    flex-shrink: 0;
+    padding: 11px 24px;
+    text-align: center;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #siteFooter a { color: var(--muted); text-decoration: underline; }
+  #siteFooter a:hover { color: var(--text); }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 640px) {
+    #welcome { padding: 16px; }
+    .welcome-card .greeting { font-size: 26px; margin-bottom: 18px; }
+    .welcome-card.intro-block .greeting { font-size: 19px; }
+    .welcome-card p { font-size: 14.5px; line-height: 1.6; margin-bottom: 20px; }
+    .lang-toggle { padding: 4px 11px; font-size: 12px; }
+
+    header { padding: 12px 16px; }
+    header h1 { font-size: 13px; }
+    header span { font-size: 11px; }
+
+    #progressWrap { padding: 12px 16px 0; gap: 9px; }
+    #progressTrack { height: 6px; }
+    #progressLabel { font-size: 11px; min-width: 26px; }
+
+    /* Pin the header + progress bar to the top of the viewport so the
+       on-screen keyboard pushing the page up never scrolls them out of
+       view. #chat gets compensating top padding via a JS-measured
+       --topbar-height variable so its content never starts underneath it. */
+    #appTopBar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    #chat {
+      padding: 18px 16px;
+      padding-top: calc(var(--topbar-height, 96px) + 18px);
+    }
+    .msg { margin-bottom: 18px; }
+    .msg.assistant .bubble { font-size: 14.5px; }
+    .msg.user .bubble { max-width: 88%; font-size: 14px; padding: 10px 13px; }
+
+    #composer {
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+    .input-row { padding: 7px 7px 7px 15px; border-radius: 22px; }
+    .composer-input { font-size: 16px; padding: 9px 0; }
+    .composer-send { width: 34px; height: 34px; font-size: 16px; }
+
+    #siteFooter {
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      font-size: 11px;
+      line-height: 1.45;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .welcome-card .greeting { font-size: 22px; }
+    .msg.user .bubble { max-width: 92%; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="welcome">
+    <div class="welcome-card">
+      <div class="lang-row">
+        <button id="welcomeLangToggle" class="lang-toggle" type="button">Deutsch</button>
+      </div>
+      <h1 class="greeting">Weak Signals Survey</h1>
+      <p class="lang-en">This is a short conversation about the small, easy to miss shifts in how AI is changing the production and consumption of news right now, the kind of thing that's easy to notice in passing but rarely gets asked about directly. It's built on two reports, <a href="https://www.opensocietyfoundations.org/publications/ai-in-journalism-futures-2024" target="_blank" rel="noopener">AI in Journalism Futures 2024</a> and <a href="https://aijf2025.tinius.com/no" target="_blank" rel="noopener">AI in Journalism Futures 2025</a>, and uses the <a href="https://airtable.com/appAdNMSrIlE5HdV9/shrRJ0sEIqWrmaima/tblBcSZESOAuy5Q9A?viewControls=on" target="_blank" rel="noopener">Use Cases database</a> from <a href="https://www.journalismai.info/about" target="_blank" rel="noopener">JournalismAI</a> as a foundation, checking what you share against more than 100 documented examples from newsrooms worldwide. The goal is to fold what you notice into a live, crowdsourced map of where journalism and AI are actually heading, grounded in real experience rather than speculation. It takes no longer than 20 to 30 minutes, usually less, and stays anonymous: your name is optional, your role isn't. To start, tell me your role in the newsroom and roughly how long you've been doing this kind of work.</p>
+      <p class="lang-de">Dies ist ein kurzes Gespräch über die kleinen, leicht zu übersehenden Verschiebungen, wie KI gerade die Produktion und den Konsum von Nachrichten verändert, die Art von Dingen, die im Vorbeigehen auffallen, aber selten direkt angesprochen werden. Es basiert auf zwei Berichten, <a href="https://www.opensocietyfoundations.org/publications/ai-in-journalism-futures-2024" target="_blank" rel="noopener">AI in Journalism Futures 2024</a> und <a href="https://aijf2025.tinius.com/no" target="_blank" rel="noopener">AI in Journalism Futures 2025</a>, und nutzt die <a href="https://airtable.com/appAdNMSrIlE5HdV9/shrRJ0sEIqWrmaima/tblBcSZESOAuy5Q9A?viewControls=on" target="_blank" rel="noopener">Use Cases Datenbank</a> von <a href="https://www.journalismai.info/about" target="_blank" rel="noopener">JournalismAI</a> als Grundlage, um das, was Sie teilen, mit mehr als 100 dokumentierten Beispielen aus Newsrooms weltweit zu vergleichen. Das Ziel ist es, das, was Sie beobachten, in eine lebende, gemeinsam erstellte Landkarte einfließen zu lassen, wohin sich Journalismus und KI tatsächlich entwickeln, basierend auf echter Erfahrung statt Spekulation. Es dauert nicht länger als 20 bis 30 Minuten, meist weniger, und bleibt anonym: Ihr Name ist optional, Ihre Rolle nicht. Erzählen Sie mir zum Einstieg, welche Rolle Sie im Newsroom haben und wie lange Sie diese Art von Arbeit schon machen.</p>
+      <div class="input-row">
+        <textarea id="welcomeInput" class="composer-input" rows="1" placeholder="Your role, and how long you've been doing this work..."></textarea>
+        <button id="welcomeSend" class="composer-send" aria-label="Send">&uarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app">
+    <div id="appTopBar">
+      <header>
+        <div>
+          <h1>Weak Signals Survey</h1>
+          <span class="lang-en">Phase 1–5 prototype</span>
+          <span class="lang-de">Phase 1–5 Prototyp</span>
+        </div>
+        <div class="header-right">
+          <button id="appLangToggle" class="lang-toggle" type="button">Deutsch</button>
+        </div>
+      </header>
+      <div id="progressWrap">
+        <div id="progressTrack"><div id="progressFill"></div></div>
+        <div id="progressLabel"></div>
+      </div>
+    </div>
+    <div id="chat"></div>
+    <div id="composer">
+      <div class="input-row">
+        <textarea id="input" class="composer-input" rows="1" placeholder="Type your reply..."></textarea>
+        <button id="send" class="composer-send" aria-label="Send">&uarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <footer id="siteFooter">
+    <span class="lang-en">Vibe coded by David Daki Obradović in collaboration with the <a href="https://www.dieangewandte.at/en/institutes/fine_arts_and_media_art/digital_arts" target="_blank" rel="noopener">Digital Arts Department</a> and <a href="https://www.journalismai.info/about" target="_blank" rel="noopener">JournalismAI</a>.</span>
+    <span class="lang-de">Vibe gecodet von David Daki Obradović in Zusammenarbeit mit der <a href="https://www.dieangewandte.at/en/institutes/fine_arts_and_media_art/digital_arts" target="_blank" rel="noopener">Digital Arts Department</a> und <a href="https://www.journalismai.info/about" target="_blank" rel="noopener">JournalismAI</a>.</span>
+  </footer>
+
+  <script>
+    const welcomeEl = document.getElementById("welcome");
+    const appEl = document.getElementById("app");
+    const chatEl = document.getElementById("chat");
+
+    const welcomeInputEl = document.getElementById("welcomeInput");
+    const welcomeSendBtn = document.getElementById("welcomeSend");
+
+    const inputEl = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+
+    const welcomeLangToggle = document.getElementById("welcomeLangToggle");
+    const appLangToggle = document.getElementById("appLangToggle");
+
+    const progressFillEl = document.getElementById("progressFill");
+    const progressLabelEl = document.getElementById("progressLabel");
+    const appTopBarEl = document.getElementById("appTopBar");
+
+    // Measures the pinned header+progress bar's actual rendered height and
+    // writes it to a CSS variable so #chat's top padding (used only on
+    // mobile, where the bar is position: fixed) always matches exactly,
+    // no matter the language, font size, or screen width in use.
+    function updateTopBarHeight() {
+      if (!appTopBarEl) return;
+      const h = appTopBarEl.offsetHeight;
+      if (h > 0) {
+        document.documentElement.style.setProperty("--topbar-height", h + "px");
+      }
+    }
+
+    window.addEventListener("resize", updateTopBarHeight);
+    window.addEventListener("orientationchange", updateTopBarHeight);
+
+    let messages = [];
+    let currentLang = "en";
+    let currentPhase = 1;
+    // Number of exchanges that have actually happened within currentPhase,
+    // as confirmed by the model's own [PHASE:n] tag. Resets to 0 every time
+    // the model actually advances to a new phase.
+    let phaseExchangeCount = 0;
+    let progressPct = 0;
+
+    // The five phases are an even, honest 20% each of the bar, since that's
+    // what they actually are: five real, equally weighted stages.
+    const SEGMENT_PCT = 20;
+    const PHASE_FLOOR_PCT = { 1: 0, 2: 20, 3: 40, 4: 60, 5: 80 };
+    // Rough expected number of exchanges per phase, used only to estimate
+    // how far through the current phase's own segment we are, never to
+    // guess at overall conversation length the way a single fixed total
+    // turn count would.
+    const PHASE_EXPECTED_EXCHANGES = { 1: 2, 2: 5, 3: 5, 4: 4, 5: 5 };
+
+    function computeProgressPct(phase, exchangeCount) {
+      const floor = PHASE_FLOOR_PCT[phase] ?? 0;
+      const expected = PHASE_EXPECTED_EXCHANGES[phase] ?? 4;
+      const withinSegment = Math.min(exchangeCount / expected, 1) * SEGMENT_PCT;
+      return Math.min(floor + withinSegment, 100);
+    }
+
+    // Short, atomic UI strings that aren't worth marking up as lang-en/lang-de
+    // pairs in the HTML directly (placeholders, button labels, status text).
+    const texts = {
+      en: {
+        toggleLabel: "Deutsch",
+        welcomePlaceholder: "Your role, and how long you've been doing this work...",
+        inputPlaceholder: "Type your reply...",
+        typing: "typing...",
+        errorPrefix: "Error: ",
+        connectionErrorPrefix: "Connection error: ",
+      },
+      de: {
+        toggleLabel: "English",
+        welcomePlaceholder: "Ihre Rolle und wie lange Sie das schon machen...",
+        inputPlaceholder: "Ihre Antwort eingeben...",
+        typing: "tippt...",
+        errorPrefix: "Fehler: ",
+        connectionErrorPrefix: "Verbindungsfehler: ",
+      },
+    };
+
+    function renderProgress() {
+      progressFillEl.style.width = progressPct + "%";
+      progressLabelEl.textContent = Math.round(progressPct) + "%";
+    }
+
+    // Called the instant the respondent hits send, before the server even
+    // replies, so the bar nudges forward right away instead of sitting
+    // still until the response arrives. This is a small optimistic step
+    // within the current phase's own segment, never a guess about overall
+    // conversation length, so it can never overshoot into the next phase.
+    function bumpProgressForNewTurn() {
+      const optimisticPct = computeProgressPct(currentPhase, phaseExchangeCount + 0.5);
+      progressPct = Math.max(progressPct, optimisticPct);
+      renderProgress();
+    }
+
+    // Called once the server's reply reveals which phase the model actually
+    // says it's in. This is the source of truth: the bar's phase floor only
+    // ever moves because the model itself reported a new phase, and progress
+    // within a phase only ever grows because another real exchange happened
+    // in that same phase, never from a fixed guess about total turns.
+    function setPhase(phase) {
+      if (typeof phase !== "number" || phase < 1 || phase > 5 || phase === currentPhase) {
+        // Missing, malformed, or unchanged tag: still log this exchange
+        // against whatever phase we're already confirmed to be in.
+        phaseExchangeCount += 1;
+      } else if (phase > currentPhase) {
+        // Genuine forward phase change: reset the within-phase counter so
+        // the new segment's progress reflects only exchanges spent there.
+        currentPhase = phase;
+        phaseExchangeCount = 1;
+      } else {
+        // A reported phase behind the current one is almost certainly a
+        // stray or malformed tag, the conversation never actually moves
+        // backward, so ignore the regression but still count the exchange.
+        phaseExchangeCount += 1;
+      }
+      progressPct = Math.max(progressPct, computeProgressPct(currentPhase, phaseExchangeCount));
+      renderProgress();
+    }
+
+    function applyLanguage(lang) {
+      currentLang = lang;
+      document.body.classList.remove("lang-en", "lang-de");
+      document.body.classList.add("lang-" + lang);
+      document.documentElement.lang = lang;
+
+      const t = texts[lang];
+      welcomeInputEl.placeholder = t.welcomePlaceholder;
+      inputEl.placeholder = t.inputPlaceholder;
+      welcomeLangToggle.textContent = t.toggleLabel;
+      appLangToggle.textContent = t.toggleLabel;
+      renderProgress();
+      updateTopBarHeight();
+    }
+
+    function toggleLanguage() {
+      applyLanguage(currentLang === "en" ? "de" : "en");
+    }
+
+    welcomeLangToggle.addEventListener("click", toggleLanguage);
+    appLangToggle.addEventListener("click", toggleLanguage);
+
+    applyLanguage("en");
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function linkify(text) {
+      const escaped = escapeHtml(text);
+      return escaped.replace(/(https?:\/\/[^\s<>"']+)/g, function (url) {
+        // trim trailing punctuation that's likely sentence punctuation, not part of the URL
+        const trailing = url.match(/[.,;:!?)]+$/);
+        const clean = trailing ? url.slice(0, -trailing[0].length) : url;
+        const suffix = trailing ? trailing[0] : "";
+        return (
+          '<a href="' +
+          clean +
+          '" target="_blank" rel="noopener noreferrer">' +
+          clean +
+          "</a>" +
+          suffix
+        );
+      });
+    }
+
+    function addBubble(role, text) {
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + role;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      if (role === "assistant") {
+        bubble.innerHTML = linkify(text);
+      } else {
+        bubble.textContent = text;
+      }
+      wrap.appendChild(bubble);
+      chatEl.appendChild(wrap);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      return bubble;
+    }
+
+    function setTyping(show) {
+      let el = document.getElementById("typing-indicator");
+      if (show && !el) {
+        el = document.createElement("div");
+        el.id = "typing-indicator";
+        el.className = "msg assistant";
+        const typing = document.createElement("div");
+        typing.className = "typing";
+        typing.textContent = texts[currentLang].typing;
+        el.appendChild(typing);
+        chatEl.appendChild(el);
+        chatEl.scrollTop = chatEl.scrollHeight;
+      } else if (!show && el) {
+        el.remove();
+      }
+    }
+
+    async function sendToServer() {
+      setTyping(true);
+      sendBtn.disabled = true;
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages, lang: currentLang }),
+        });
+        const data = await res.json();
+        setTyping(false);
+        if (data.error) {
+          addBubble("assistant", texts[currentLang].errorPrefix + data.error);
+          return;
+        }
+        messages.push({ role: "assistant", content: data.reply });
+        addBubble("assistant", data.reply);
+        setPhase(data.phase);
+      } catch (err) {
+        setTyping(false);
+        addBubble("assistant", texts[currentLang].connectionErrorPrefix + err);
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    async function handleSend() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+      messages.push({ role: "user", content: text });
+      addBubble("user", text);
+      inputEl.value = "";
+      bumpProgressForNewTurn();
+      await sendToServer();
+    }
+
+    sendBtn.addEventListener("click", handleSend);
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    });
+
+    // The welcome screen's input box doubles as the very first reply
+    // (their role). There's no separate "start" button: typing and
+    // sending here IS the first real message in the conversation.
+    async function startConversation() {
+      const text = welcomeInputEl.value.trim();
+      if (!text) return;
+
+      // Move the welcome content into the chat history as its first item,
+      // instead of discarding it, so it stays reachable by scrolling up.
+      const introBlock = document.querySelector(".welcome-card").cloneNode(true);
+      introBlock.classList.add("intro-block");
+      const clonedInputRow = introBlock.querySelector(".input-row");
+      if (clonedInputRow) clonedInputRow.remove();
+      const clonedLangRow = introBlock.querySelector(".lang-row");
+      if (clonedLangRow) clonedLangRow.remove();
+      chatEl.appendChild(introBlock);
+
+      welcomeEl.classList.add("hidden");
+      appEl.classList.add("active");
+      updateTopBarHeight();
+
+      messages.push({ role: "user", content: text });
+      addBubble("user", text);
+      inputEl.focus();
+      bumpProgressForNewTurn();
+
+      await sendToServer();
+    }
+
+    welcomeSendBtn.addEventListener("click", startConversation);
+    welcomeInputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        startConversation();
+      }
+    });
+  </script>
+</body>
+</html>
